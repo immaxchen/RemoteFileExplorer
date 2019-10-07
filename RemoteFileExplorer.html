@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
+    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+    <style>
+        .s-noselect {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        #s-rectBox {
+            position: absolute;
+            z-index: 1090;
+            border: 2px dashed #cbd3e3;
+        }
+        
+        .upload-drop-zone {
+            height: 500px;
+            border-width: 2px;
+            border-style: dashed;
+            text-align: center;
+            line-height: 500px;
+            border-color: #ccc;
+            color: #ccc;
+        }
+        
+        .upload-drop-zone.drop {
+          border-color: #428bca;
+          color: #428bca;
+        }
+        
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: "\\";
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 3rem;
+            height: calc(100vh - 3rem);
+            border-right: 1px solid rgba(0,0,0,.1);
+            overflow-y: auto;
+        }
+        
+        .menu-ico {
+            width: 30px;
+        }
+    </style>
+
+    <title>File Explorer</title>
+</head>
+
+<body>
+    <div style="z-index: 99; position: fixed; width: 100%;">
+        <nav aria-label="breadcrumb">
+            <ol id="pathItem" class="breadcrumb">
+            </ol>
+        </nav>
+    </div>
+
+    <div class="dropdown-menu" id="context-menu" style="background-color: WhiteSmoke;">
+        <button type="button" class="dropdown-item" onclick="updateALL();">
+            <span class="menu-ico fas fa-sync"></span> Refresh
+        </button>
+        <button type="button" class="dropdown-item" onclick="jumpTo();">
+            <span class="menu-ico fas fa-angle-double-right"></span> Jump To
+        </button>
+        <div class="dropdown-divider"></div>
+        <button type="button" class="dropdown-item" onclick="compressSelection();">
+            <span class="menu-ico fas fa-file-archive"></span> Compress
+        </button>
+        <button type="button" class="dropdown-item" onclick="extractSelection();">
+            <span class="menu-ico fas fa-expand-arrows-alt"></span> Extract
+        </button>
+        <button type="button" class="dropdown-item" onclick="downloadSelection();">
+            <span class="menu-ico fas fa-download"></span> Download
+        </button>
+        <button type="button" class="dropdown-item" data-toggle="modal" data-target="#uploadModal">
+            <span class="menu-ico fas fa-upload"></span> Upload
+        </button>
+        <div class="dropdown-divider"></div>
+        <button type="button" class="dropdown-item" onclick="cbFlag='Cut'; selectionToClipboard();">
+            <span class="menu-ico fas fa-cut"></span> Cut
+        </button>
+        <button type="button" class="dropdown-item" onclick="cbFlag='Copy'; selectionToClipboard();">
+            <span class="menu-ico fas fa-copy"></span> Copy
+        </button>
+        <button type="button" class="dropdown-item" onclick="pasteFromClipboard();">
+            <span class="menu-ico fas fa-paste"></span> Paste
+        </button>
+        <button type="button" class="dropdown-item" data-toggle="modal" data-target="#clipboardModal">
+            <span class="menu-ico fas fa-clipboard"></span> Clipboard
+        </button>
+        <div class="dropdown-divider"></div>
+        <button type="button" class="dropdown-item" onclick="createFolder();">
+            <span class="menu-ico fas fa-folder-plus"></span> New Folder
+        </button>
+        <button type="button" class="dropdown-item" onclick="renameTarget();">
+            <span class="menu-ico fas fa-edit"></span> Rename
+        </button>
+        <button type="button" class="dropdown-item" onclick="removeTarget();">
+            <span class="menu-ico fas fa-trash"></span> Delete
+        </button>
+    </div>
+
+    <div class="container-fluid" style="padding-top: 3rem;">
+        <div class="row">
+            <div class="col-3 sidebar" style="padding: 0;">
+
+                <table class="table table-hover" style="table-layout: fixed; cursor: pointer;">
+                    <thead id="backBtn">
+                        <tr class="table-warning">
+                            <td style="width: 35px;"><span class="fas fa-arrow-circle-left"></span></td>
+                            <td></td>
+                        </tr>
+                    </thead>
+                    <tbody id="pathMenu">
+                    </tbody>
+                </table>
+
+            </div>
+            <div class="col-9" style="padding: 0;">
+
+                <table class="table table-hover sortable">
+                    <thead style="cursor: pointer;">
+                        <tr>
+                            <th scope="col" style="width: 35px;"> </th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Size</th>
+                            <th scope="col">Time</th>
+                            <th scope="col">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pathContent" style="cursor: default;">
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-labelledby="uploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">Files Upload</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-drop-zone" id="drop-zone" style="font-size: 24px;">
+                Just drag and drop files here
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="clipboardModal" tabindex="-1" role="dialog" aria-labelledby="clipboardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clipboardModalLabel">Clipboard</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="clipboardContent">
+            </div>
+        </div>
+        </div>
+    </div>
+
+
+    <div id="s-rectBox"></div>
+    <script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="http://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="http://kryogenix.org/code/browser/sorttable/sorttable.js"></script>
+    <script>
+        function getIconClass(type) {
+            switch (type) {
+                case "Drive":
+                    return "fa fa-hdd";
+                case "Folder":
+                    return "fa fa-folder";
+                case ".lnk":
+                    return "fa fa-share-square";
+                case ".exe":
+                    return "fa fa-window-maximize";
+                case ".dll":
+                    return "fa fa-cog";
+                case ".txt":
+                    return "fa fa-file-alt";
+                case ".zip":
+                    return "fa fa-file-archive";
+                case ".rar":
+                    return "fa fa-file-archive";
+                case ".7z":
+                    return "fa fa-file-archive";
+                case ".gz":
+                    return "fa fa-file-archive";
+                case ".cs":
+                    return "fa fa-file-code";
+                case ".py":
+                    return "fa fa-file-code";
+                case ".ipynb":
+                    return "fa fa-file-code";
+                case ".html":
+                    return "fa fa-file-code";
+                case ".css":
+                    return "fa fa-file-code";
+                case ".js":
+                    return "fa fa-file-code";
+                case ".jsl":
+                    return "fa fa-file-code";
+                case ".sas":
+                    return "fa fa-file-code";
+                case ".frm":
+                    return "fa fa-file-code";
+                case ".bas":
+                    return "fa fa-file-code";
+                case ".h":
+                    return "fa fa-file-code";
+                case ".cpp":
+                    return "fa fa-file-code";
+                case ".ini":
+                    return "fa fa-file-code";
+                case ".xml":
+                    return "fa fa-file-code";
+                case ".config":
+                    return "fa fa-file-code";
+                case ".jpg":
+                    return "fa fa-file-image";
+                case ".png":
+                    return "fa fa-file-image";
+                case ".bmp":
+                    return "fa fa-file-image";
+                case ".mp3":
+                    return "fa fa-file-music";
+                case ".mp4":
+                    return "fa fa-file-video";
+                case ".pdf":
+                    return "fa fa-file-pdf";
+                case ".doc":
+                    return "fa fa-file-word";
+                case ".docx":
+                    return "fa fa-file-word";
+                case ".xls":
+                    return "fa fa-file-excel";
+                case ".xlsx":
+                    return "fa fa-file-excel";
+                case ".xlsm":
+                    return "fa fa-file-excel";
+                case ".csv":
+                    return "fa fa-file-excel";
+                case ".ppt":
+                    return "fa fa-file-powerpoint";
+                case ".pptx":
+                    return "fa fa-file-powerpoint";
+                case ".pptm":
+                    return "fa fa-file-powerpoint";
+                case ".potx":
+                    return "fa fa-file-powerpoint";
+                case ".mdb":
+                    return "fa fa-database";
+                case ".db3":
+                    return "fa fa-database";
+                default:
+                    return "fa fa-file";
+            }
+        }
+        
+        function pathPush(item) { _path = path.slice(); path.push(item); }
+        function pathPop() { _path = path.slice(); path.pop(); }
+        function pathUpdate(newpath) { _path = path.slice(); path = newpath; }
+        function pathResume() { path = _path; }
+        function getOsPath(basename) { return basename ? path.slice(1).concat(basename).join("\\") : path.slice(1).join("\\"); }
+        function getUrlPath(basename) { return encodeURIComponent( getOsPath(basename) ); }
+        function getNameFromRow(tableRow) { return tableRow.children().eq(1).text(); }
+        function getTypeFromRow(tableRow) { return tableRow.children().eq(4).text(); }
+        function isvalid(basename) { return basename.length > 0 & ! /[\\/:*?"<>|]/.test(basename); }
+        
+        function insertContent(data) {
+            var tbody = $("#pathContent");
+            for (var i = 0; i < data.length; i++) {
+                var row = $(document.createElement("tr"));
+                var col = $(document.createElement("td"));
+                col.css("width", "35px");
+                var ico = $(document.createElement("span"));
+                ico.addClass(getIconClass(data[i][3]));
+                col.append(ico);
+                row.append(col);
+                for (const val of data[i]) {
+                    var col = $(document.createElement("td"));
+                    col.text(val);
+                    row.append(col);
+                }
+                tbody.append(row);
+            }
+        }
+        
+        function updateMenu(data) {
+            path.length == 1 ? $("#backBtn").attr("onclick", "") : $("#backBtn").attr("onclick", "pathPop(); updateALL();");
+            var tbody = $("#pathMenu").empty();
+            for (var i = 0; i < data.length; i++) {
+                var row = $(document.createElement("tr"));
+                row.addClass("table-warning");
+                var col = $(document.createElement("td"));
+                col.css("width", "35px");
+                var ico = $(document.createElement("span"));
+                ico.addClass(getIconClass(data[i][3]));
+                col.append(ico);
+                row.append(col);
+                var col = $(document.createElement("td"));
+                col.addClass("text-truncate");
+                col.text(data[i][0]);
+                row.attr("onclick", "pathPush(\"" + data[i][0] + "\"); updateALL();");
+                row.append(col);
+                tbody.append(row);
+            }
+        }
+        
+        function updatePathItem() {
+            var list = $("#pathItem").empty();
+            for (var i = 0; i < path.length; i++) {
+                var item = $(document.createElement("li"));
+                item.addClass("breadcrumb-item");
+                if (i + 1 == path.length) {
+                    item.addClass("active");
+                    item.text(path[i]);
+                } else {
+                    var link = $(document.createElement("a"));
+                    link.attr("href", "javascript:void(0)");
+                    link.attr("onclick", "pathUpdate(" + JSON.stringify(path.slice(0, i + 1)) + "); updateALL();");
+                    link.text(path[i]);
+                    item.append(link);
+                }
+                list.append(item);
+            }
+        }
+        
+        var sels, ipos, rbox = document.getElementById('s-rectBox');
+        var clicks = 0, delay = 200, selcl = "table-primary";
+        function rectOpen(e) {
+            if (e.which !== 1) return;
+            clicks++;
+            setTimeout(function() { clicks = 0; }, delay);
+            if (clicks === 2) {
+                var name = getNameFromRow($('.' + selcl).first());
+                var type = getTypeFromRow($('.' + selcl).first());
+                if (type == "Drive" | type == "Folder") { pathPush(name); updateALL(); }
+            } else {
+                if (!e["ctrlKey"]) { for (const el of sels) { el.classList.remove(selcl); } }
+                ipos = [e.pageX, e.pageY];
+                rbox.style.left = ipos[0] + 'px', rbox.style.top = ipos[1] + 'px';
+                rbox.style.width = 0, rbox.style.height = 0, rbox.style.display = 'block';
+                document.body.classList.add('s-noselect');
+                document.body.addEventListener('mousemove', rectDraw);
+                window.addEventListener('mouseup', rectDone);
+            }
+        }
+        function rectDraw(e) {
+            var tmp, x1 = ipos[0], y1 = ipos[1], x2 = e.pageX, y2 = e.pageY;
+            if (x1 > x2) { tmp = x2, x2 = x1, x1 = tmp; }
+            if (y1 > y2) { tmp = y2, y2 = y1, y1 = tmp; }
+            rbox.style.left = x1 + 'px', rbox.style.top = y1 + 'px', rbox.style.width = (x2 - x1) + 'px', rbox.style.height = (y2 - y1) + 'px';
+        }
+        function offset(el) {
+            var r = el.getBoundingClientRect();
+            return {top: r.top + document.body.scrollTop, left: r.left + document.body.scrollLeft}
+        }
+        function rectOver(a, b) {
+            var aTop = offset(a).top, aLeft = offset(a).left, bTop = offset(b).top, bLeft = offset(b).left;
+            return !( ((aTop + a.offsetHeight) < (bTop)) || (aTop > (bTop + b.offsetHeight)) || 
+                      ((aLeft + a.offsetWidth) < bLeft) || (aLeft > (bLeft + b.offsetWidth)) );
+        }
+        function rectDone(e) {
+            for (const el of sels) {
+                if (rectOver(rbox, el) === true) el.classList.contains(selcl) ? el.classList.remove(selcl) : el.classList.add(selcl);
+            }
+            rbox.style.display = 'none';
+            document.body.classList.remove('s-noselect');
+            document.body.removeEventListener('mousemove', rectDraw);
+            window.removeEventListener('mouseup', rectDone);
+        }
+        document.getElementById("pathContent").addEventListener('mousedown', rectOpen);
+        
+        function updateALL() {
+            $.get("/RemoteFileExplorer/list/" + getUrlPath()).done(function(json){
+                var result = $.parseJSON(json);
+                $("#pathContent").empty();
+                if (path.length == 1) insertContent(result.drives);
+                insertContent(result.folders);
+                insertContent(result.files);
+                sels = document.querySelectorAll("#pathContent tr");
+                updateMenu(path.length == 1 ? result.drives : result.folders);
+                updatePathItem();
+            }).fail(function() {
+                toastr["warning"]('Cannot go to "' + getOsPath() + '"');
+                pathResume();
+            });
+        }
+        
+        function jumpTo() {
+            var loc = window.prompt("Enter the path to go : ", getOsPath());
+            if (loc) {
+                path = [ host ].concat(loc.split("\\"));
+                updateALL();
+            }
+        }
+        
+        function compressSelection() {
+            if (path.length == 1) toastr["info"]("Cannot compress at root level.");
+            else {
+                var selection = $(".table-primary").map(function() { return getNameFromRow($(this)); }).get();
+                $.post("/RemoteFileExplorer/compress/" + getUrlPath(), {selection: selection}, function(){ updateALL(); });
+            }
+        }
+        
+        function extractSelection() {
+            $(".table-primary").each(function() {
+                var name = getNameFromRow($(this));
+                var type = getTypeFromRow($(this));
+                if (type == ".zip") $.get("/RemoteFileExplorer/extract/" + getUrlPath(name), function() { updateALL(); })
+                else toastr["info"]('"' + name + '" is not a zip file.');
+            });
+        }
+        
+        function downloadSelection() {
+            $(".table-primary").each(function() {
+                var name = getNameFromRow($(this));
+                var type = getTypeFromRow($(this));
+                if (type == "Drive") toastr["info"]("Cannot download a hard drive.");
+                else if (type == "Folder") toastr["info"]("Cannot download a folder, please compress it first. (" + name + ")");
+                else window.open("/RemoteFileExplorer/download/" + getUrlPath(name), '_blank');
+            });
+        }
+        
+        function uploadSelection(files) {
+            if (path.length == 1) toastr["info"]("Cannot upload to root level.");
+            else {
+                for (const file of files) {
+                    var fd = new FormData();
+                    fd.append('file', file);
+                    $.ajax({
+                        url: '/RemoteFileExplorer/upload/' + getUrlPath(),
+                        type: 'post',
+                        data: fd,
+                        contentType: false,
+                        processData: false,
+                        complete: function() { 
+                            updateALL();
+                            toastr["success"]('Complete upload "' + file.name + '".');
+                        }
+                    });
+                }
+            }
+        }
+        
+        function selectionToClipboard() {
+            if (path.length == 1) toastr["info"]("Cannot cut or copy at root level.");
+            else {
+                clipboard = $(".table-primary").map(function() {
+                    var name = getNameFromRow($(this));
+                    return getOsPath(name);
+                }).get();
+                $("#clipboardModalLabel").text("Clipboard (" + cbFlag + ")");
+                $("#clipboardContent").html(clipboard.join("<br>"));
+            }
+        }
+        
+        function pasteFromClipboard() {
+            if (path.length == 1) {
+                toastr["info"]("Cannot paste to root level.");
+                return;
+            }
+            if (cbFlag == "Cut") {
+                $.post("/RemoteFileExplorer/move/" + getUrlPath(), {clipboard: clipboard}).done(function() {
+                    clipboard = [];
+                    $("#clipboardContent").html("");
+                }).fail(function() {
+                    toastr["warning"]("Move operation failed. Destination might already exists.");
+                }).always(function() {
+                    updateALL();
+                });
+            } else if (cbFlag == "Copy") {
+                $.post("/RemoteFileExplorer/copy/" + getUrlPath(), {clipboard: clipboard}).fail(function() {
+                    toastr["warning"]("Copy operation failed. Destination might already exists.");
+                }).always(function() {
+                    updateALL();
+                });
+            }
+        }
+        
+        function createFolder() {
+            if (path.length == 1) toastr["info"]("Cannot create folder at root level.");
+            else {
+                var name = window.prompt("Enter folder name to create : ");
+                if ( isvalid(name) ) $.get("/RemoteFileExplorer/make/" + getUrlPath(name), function(){ updateALL(); });
+                else toastr["info"]('"' + name + '" is not a valid name.');
+            }
+        }
+        
+        function renameTarget() {
+            if ( $(".table-primary").length != 1 )
+                toastr["info"]("Please select an item and rename it one at a time.");
+            else {
+                var type = getTypeFromRow($(".table-primary").first());
+                if (type == "Drive") toastr["info"]("Cannot rename a hard drive.");
+                else {
+                    var oldName = getNameFromRow($(".table-primary").first());
+                    var newName = window.prompt("Enter new name to rename : ", oldName);
+                    if ( isvalid(newName) )
+                        $.post("/RemoteFileExplorer/rename/" + getUrlPath(), {oldName: oldName, newName: newName}, function(){ updateALL(); });
+                    else
+                        toastr["info"]('"' + newName + '" is not a valid name.');
+                }
+            }
+        }
+        
+        function removeTarget() {
+            $(".table-primary").each(function() {
+                var name = getNameFromRow($(this));
+                var type = getTypeFromRow($(this));
+                if (type == "Drive") toastr["info"]("Cannot delete a hard drive.");
+                else $.get("/RemoteFileExplorer/remove/" + getUrlPath(name), function(){ updateALL(); });
+            });
+        }
+        
+        $('body').on('contextmenu', function(e) {
+            $("#context-menu").css({
+                display: "block",
+                top: e.pageY,
+                left: e.pageX
+            }).show();
+            return false;
+        }).on("click", function() {
+            $("#context-menu").hide();
+        });
+        
+        var host, path, _path, cbFlag, clipboard;
+        $(function () {
+            var dropZone = document.getElementById('drop-zone');
+            dropZone.ondragover = function() {
+                this.className = 'upload-drop-zone drop';
+                return false;
+            }
+            dropZone.ondragleave = function() {
+                this.className = 'upload-drop-zone';
+                return false;
+            }
+            dropZone.ondrop = function(e) {
+                e.preventDefault();
+                this.className = 'upload-drop-zone';
+                uploadSelection(e.dataTransfer.files);
+            }
+            $.get("/RemoteFileExplorer/hostname", function(data) {
+                host = data;
+                path = [ host ];
+                _path = path.slice();
+                clipboard = [];
+                updateALL();
+            });
+        })
+    </script>
+</body>
+
+</html>
