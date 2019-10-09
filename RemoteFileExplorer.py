@@ -1,3 +1,5 @@
+# coding=utf-8
+
 from flask import Flask, send_from_directory, send_file, request
 import socket, pythoncom, os, win32api, json, zipfile, shutil
 from datetime import datetime
@@ -75,7 +77,7 @@ def compress_target(path):
     selection = request.form.getlist('selection[]')
     if len(selection) == 0: return "nothing selected"
     elif len(selection) == 1: basename = selection[0]
-    else: basename = '{0}資料夾內-共{1}個項目-{2}'.format(os.path.basename(path), len(selection), datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f'))
+    else: basename = 'Inside[{0}]-Items[{1}]-Ts[{2}]'.format(os.path.basename(path), len(selection), datetime.now().strftime('%Y%m%d.%H%M%S.%f'))
     paths = retrieve_paths([os.path.join(path, item) for item in selection])
     filename = os.path.join(path, '{0}.zip'.format(basename))
     with zipfile.ZipFile(filename, 'w') as f:
